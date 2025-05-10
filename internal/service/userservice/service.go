@@ -11,7 +11,12 @@ type Repository interface {
 	Register(u domain.User) error
 }
 type Service struct {
-	repo Repository
+	signKey string
+	repo    Repository
+}
+
+func New(signKey string, repo Repository) Service {
+	return Service{repo: repo, signKey: signKey}
 }
 
 type RegisterUserRequest struct {
@@ -23,8 +28,17 @@ type RegisterUserResponse struct {
 	User domain.User
 }
 
-func (service *Service) Login(username string, password string) (string, error) {
-	return "", nil
+type LoginUserResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
+func (service *Service) Login(username string, password string) (LoginUserResponse, error) {
+
+	//create token from service and return it to login response
+	return LoginUserResponse{
+		AccessToken: "token",
+	}, nil
+
 }
 
 func (service *Service) Register(r RegisterUserRequest) (RegisterUserResponse, error) {
