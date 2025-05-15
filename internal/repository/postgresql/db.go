@@ -4,20 +4,22 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+
+	_ "github.com/lib/pq"
 )
 
-type DB struct {
-	db *sql.DB
-}
-
-func New() *DB {
-	//postgres://%s:%s@%s:%s/%s
-	connStr := "postgres://user:password@localhost:5432/test"
-
-	db, err := sql.Open("postgres", connStr)
+// NewPostgreSQLDB initializes and returns a PostgreSQL database connection.
+func NewPostgreSQLDB(databaseURL string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		panic(fmt.Errorf("failed to connect to postgresql database: %w", err))
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
-	log.Println("connected to postgresql database")
-	return &DB{db: db}
+	err = db.Ping()
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	log.Println("Successfully connected to PostgreSQL!")
+	return db, nil
 }

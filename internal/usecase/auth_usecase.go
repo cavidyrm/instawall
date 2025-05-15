@@ -4,145 +4,151 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"c:\Users\Cavid\Desktop\instawall/internal/domain"
-	"c:\Users\Cavid\Desktop\instawall/pkg/otp"
+	"instawall/internal/domain"
+	"instawall/internal/repository"
 )
 
+// AuthUseCase defines the interface for authentication-related business logic.
+type AuthUseCase interface {
+	Register(username, email, password string) (*domain.User, error)
+	Login(email, password string) (*domain.User, error)
+	SendPasswordResetOTP(email string) error
+	ValidatePasswordResetOTP(email, otp string) (*domain.User, error)
+}
+
+// authUseCase implements the AuthUseCase interface.
 type authUseCase struct {
-	userRepo   domain.UserRepository
-	otpRepo    domain.OTPRepository
-	otpService otp.OTPService
+	userRepo repository.UserRepository
+	otpRepo  repository.OTPRepository
 }
 
-func NewAuthUseCase(userRepo domain.UserRepository, otpRepo domain.OTPRepository, otpService otp.OTPService) domain.AuthUseCase {
+// NewAuthUseCase creates a new instance of AuthUseCase.
+func NewAuthUseCase(userRepo repository.UserRepository, otpRepo repository.OTPRepository) AuthUseCase {
 	return &authUseCase{
-		userRepo:   userRepo,
-		otpRepo:    otpRepo,
-		otpService: otpService,
+		userRepo: userRepo,
+		otpRepo:  otpRepo,
 	}
 }
 
-func (uc *authUseCase) Register(email, password string) error {
-	// Check if user already exists
-	_, err := uc.userRepo.GetByEmail(email)
-	if err == nil {
-		return errors.New("user with this email already exists")
+// Register creates a new user.
+func (uc *authUseCase) Register(username, email, password string) (*domain.User, error) {
+	// Check if a user with the same email already exists
+	existingUser, err := uc.userRepo.FindByEmail(email)
+	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
+		return nil, err
+	}
+	if existingUser != nil {
+		return nil, errors.New("user with this email already exists")
 	}
 
-	// Hash password
+	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// Create user
-	user := &domain.User{
-		ID:        uuid.New().String(),
+	// Create the new user
+	newUser := &domain.User{
+		Username:  username,
 		Email:     email,
 		Password:  string(hashedPassword),
 		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
 	}
 
-	// Save user
-	if err := uc.userRepo.Create(user); err != nil {
-		return err
+	// Save the user to the database
+	createdUser, err := uc.userRepo.Create(newUser)
+	if err != nil {
+		return nil, err
 	}
 
-	// Generate OTP
-	code := uc.otpService.Generate()
-
-	// Create OTP record
-	otpRecord := &domain.OTP{
-		ID:        uuid.New().String(),
-		UserID:    user.ID,
-		Code:      code,
-		Purpose:   "registration",
-		ExpiresAt: time.Now().Add(15 * time.Minute),
-		CreatedAt: time.Now(),
-	}
-
-	// Save OTP
-	if err := uc.otpRepo.Create(otpRecord); err != nil {
-		return err
-	}
-
-	// Send OTP
-	return uc.otpService.Send(email, code)
+	return createdUser, nil
 }
 
-func (uc *authUseCase) Login(email, password string) (string, error) {
-	// Get user by email
-	user, err := uc.userRepo.GetByEmail(email)
+// Login authenticates a user.
+func (uc *authUseCase) Login(email, password string) (*domain.User, error) {
+	user, err := uc.userRepo.FindByEmail(email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, errors.New("invalid credentials")
+		}
+		return nil, err
 	}
 
-	// Compare passwords
+	// Compare the provided password with the hashed password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return nil, errors.New("invalid credentials")
 	}
 
-	// In a real application, you would generate a JWT token here
-	// For simplicity, we'll just return the user ID
-	return user.ID, nil
+	return user, nil
 }
 
-func (uc *authUseCase) ForgotPassword(email string) error {
-	// Get user by email
-	user, err := uc.userRepo.GetByEmail(email)
+// SendPasswordResetOTP generates and sends an OTP for password reset.
+func (uc *authUseCase) SendPasswordResetOTP(email string) error {
+	user, err := uc.userRepo.FindByEmail(email)
 	if err != nil {
-		return errors.New("user not found")
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return errors.New("user not found")
+		}
+		return err
 	}
 
-	// Generate OTP
-	code := uc.otpService.Generate()
+	// Generate a random OTP (you'll need a function for this)
+	otpCode := "123456" // Placeholder for OTP generation
 
-	// Create OTP record
-	otpRecord := &domain.OTP{
-		ID:        uuid.New().String(),
+	// Set OTP expiry time (e.g., 15 minutes)
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	// Delete any existing OTPs for this user
+	uc.otpRepo.DeleteByUserID(user.ID) // Delete any existing OTPs for this user
+
+	// Create and save the new OTP
+	newOTP := &domain.OTP{
 		UserID:    user.ID,
-		Code:      code,
-		Purpose:   "password-reset",
-		ExpiresAt: time.Now().Add(15 * time.Minute),
+		Code:      otpCode,
+		ExpiresAt: expiresAt,
 		CreatedAt: time.Now(),
 	}
 
-	// Save OTP
-	if err := uc.otpRepo.Create(otpRecord); err != nil {
-		return err
-	}
-
-	// Send OTP
-	return uc.otpService.Send(email, code)
-}
-
-func (uc *authUseCase) VerifyOTP(code string) (string, error) {
-	// Get OTP by code
-	otpRecord, err := uc.otpRepo.GetByCode(code)
-	if err != nil {
-		return "", errors.New("invalid or expired OTP")
-	}
-
-	// Delete OTP after verification
-	if err := uc.otpRepo.Delete(otpRecord.ID); err != nil {
-		return "", err
-	}
-
-	return otpRecord.UserID, nil
-}
-
-func (uc *authUseCase) ResetPassword(userID, password string) error {
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	_, err = uc.otpRepo.Create(newOTP)
 	if err != nil {
 		return err
 	}
 
-	// Update password
-	return uc.userRepo.UpdatePassword(userID, string(hashedPassword))
+	// TODO: Implement sending the OTP via email or SMS
+
+	return nil
+}
+
+// ValidatePasswordResetOTP validates the provided OTP for password reset.
+func (uc *authUseCase) ValidatePasswordResetOTP(email, otp string) (*domain.User, error) {
+	user, err := uc.userRepo.FindByEmail(email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	otpEntry, err := uc.otpRepo.FindByUserIDAndCode(user.ID, otp)
+	if err != nil {
+		if errors.Is(err, repository.ErrOTPNotFound) {
+			return nil, errors.New("invalid OTP")
+		}
+		return nil, err
+	}
+
+	// Check if the OTP has expired
+	if time.Now().After(otpEntry.ExpiresAt) {
+		// Optionally delete the expired OTP
+		uc.otpRepo.Delete(otpEntry.ID) // Ignore error
+		return nil, errors.New("OTP has expired")
+	}
+
+	// Optionally delete the OTP after successful validation to prevent reuse
+	// uc.otpRepo.Delete(otpEntry.ID) // Ignore error
+
+	return user, nil
 }
