@@ -17,6 +17,11 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	JWTSecret  string
+	SMTPHost   string
+	SMTPPort   int
+	SMTPUser   string
+	SMTPPass   string
+	SMTPFrom   string
 }
 
 var (

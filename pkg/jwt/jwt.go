@@ -7,7 +7,7 @@ import (
 
 var jwtKey = []byte("your-secret-key") // put this in env/config
 
-func GenerateToken(userID int64) (string, error) {
+func GenerateToken(userID uint64) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),

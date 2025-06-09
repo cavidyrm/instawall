@@ -3,12 +3,10 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"instawall/internal/domain"
 	"instawall/internal/repository"
 	"instawall/pkg/jwt"
-	"time"
 )
 
 type AuthUseCase interface {
@@ -68,39 +66,39 @@ func (uc *authUseCase) Register(ctx context.Context, req *domain.RegisterRequest
 	return jwt.GenerateToken(user.ID)
 }
 
-func (uc *authUseCase) ForgotPassword(ctx context.Context, email string) error {
-	user, err := uc.repo.GetByEmail(ctx, email)
-	if err != nil {
-		return fmt.Errorf("user not found")
-	}
-
-	token := uuid.NewString()
-	expiresAt := time.Now().Add(15 * time.Minute)
-
-	err = uc.repo.(ctx, user.ID, token, expiresAt)
-	if err != nil {
-		return err
-	}
-
-	// TODO: Send email. For now, just log token.
-	fmt.Printf("Password reset link: http://localhost:8080/reset-password?token=%s\n", token)
-	return nil
-}
-
-func (uc *authUseCase) ResetPassword(ctx context.Context, token, newPassword string) error {
-	userID, err := uc.repo.GetUserIDByResetToken(ctx, token)
-	if err != nil {
-		return err
-	}
-
-	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
-	if err := uc.repo.UpdateUserPassword(ctx, userID, string(hashed)); err != nil {
-		return err
-	}
-
-	return uc.repo.DeleteResetToken(ctx, token)
-}
+//func (uc *authUseCase) ForgotPassword(ctx context.Context, email string) error {
+//	user, err := uc.repo.GetByEmail(ctx, email)
+//	if err != nil {
+//		return fmt.Errorf("user not found")
+//	}
+//
+//	token := uuid.NewString()
+//	expiresAt := time.Now().Add(15 * time.Minute)
+//
+//	err = uc.repo.(ctx, user.ID, token, expiresAt)
+//	if err != nil {
+//		return err
+//	}
+//
+//	// TODO: Send email. For now, just log token.
+//	fmt.Printf("Password reset link: http://localhost:8080/reset-password?token=%s\n", token)
+//	return nil
+//}
+//
+//func (uc *authUseCase) ResetPassword(ctx context.Context, token, newPassword string) error {
+//	userID, err := uc.repo.GetUserIDByResetToken(ctx, token)
+//	if err != nil {
+//		return err
+//	}
+//
+//	hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+//	if err != nil {
+//		return err
+//	}
+//
+//	if err := uc.repo.UpdateUserPassword(ctx, userID, string(hashed)); err != nil {
+//		return err
+//	}
+//
+//	return uc.repo.DeleteResetToken(ctx, token)
+//}

@@ -12,9 +12,8 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	IsEmailTaken(ctx context.Context, email string) (bool, error)
 	CreateUser(ctx context.Context, user *domain.User) error
-	ForgotPassword(ctx context.Context, email string) error
-	ResetPassword(ctx context.Context, token, newPassword string) error
-	SaveResetToken(ctx context.Context, token string) error
+	SaveResetToken(ctx context.Context, userID uint64, token string, expiresAt time.Time) error
+	UpdatePassword(userID uint64, newHashedPassword string) error
 }
 
 type userRepo struct {
@@ -53,7 +52,7 @@ func (r *userRepo) GetUserByEmail(ctx context.Context, email string) (*domain.Us
 	return user, err
 }
 
-func (r *userRepo) SaveResetToken(ctx context.Context, userID int, token string, expiresAt time.Time) error {
+func (r *userRepo) SaveResetToken(ctx context.Context, userID uint64, token string, expiresAt time.Time) error {
 	_, err := r.DB.ExecContext(ctx, "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)",
 		userID, token, expiresAt)
 	return err
@@ -76,12 +75,17 @@ func (r *userRepo) GetUserIDByResetToken(ctx context.Context, token string) (int
 	return userID, nil
 }
 
-func (r *userRepo) UpdateUserPassword(ctx context.Context, userID int, newHashedPassword string) error {
+func (r *userRepo) UpdateUserPassword(ctx context.Context, userID uint64, newHashedPassword string) error {
 	_, err := r.DB.ExecContext(ctx, "UPDATE users SET password = $1 WHERE id = $2", newHashedPassword, userID)
 	return err
 }
 
 func (r *userRepo) DeleteResetToken(ctx context.Context, token string) error {
 	_, err := r.DB.ExecContext(ctx, "DELETE FROM password_reset_tokens WHERE token = $1", token)
+	return err
+}
+
+func (r *userRepo) UpdatePassword(userID uint64, newHashedPassword string) error {
+	_, err := r.DB.Exec(`UPDATE users SET password = $1 WHERE id = $2`, newHashedPassword, userID)
 	return err
 }

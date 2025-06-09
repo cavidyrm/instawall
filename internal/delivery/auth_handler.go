@@ -16,8 +16,8 @@ func NewAuthHandler(e *echo.Echo, uc usecase.AuthUseCase) {
 	handler := &AuthHandler{uc: uc}
 	e.POST("/login", handler.Login)
 	e.POST("/register", handler.Register)
-	e.POST("/forgot-password", handler.ForgotPassword)
-	e.POST("/reset-password", handler.ResetPassword)
+	//e.POST("/forgot-password", handler.ForgotPassword)
+	//e.POST("/reset-password", handler.ResetPassword)
 }
 
 func (h *AuthHandler) Login(c echo.Context) error {
@@ -53,28 +53,28 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"token": token})
 }
 
-func (h *AuthHandler) ForgotPassword(c echo.Context) error {
-	var req domain.ForgotPasswordRequest
-	if err := c.Bind(&req); err != nil || c.Validate(&req) != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid email"})
-	}
-
-	if err := h.uc.ForgotPassword(c.Request().Context(), req.Email); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
-	}
-
-	return c.JSON(http.StatusOK, echo.Map{"message": "If your email is registered, a reset link was sent"})
-}
-
-func (h *AuthHandler) ResetPassword(c echo.Context) error {
-	var req domain.ResetPasswordRequest
-	if err := c.Bind(&req); err != nil || c.Validate(&req) != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid input"})
-	}
-
-	if err := h.uc.ResetPassword(c.Request().Context(), req.Token, req.NewPassword); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
-	}
-
-	return c.JSON(http.StatusOK, echo.Map{"message": "Password updated successfully"})
-}
+//func (h *AuthHandler) ForgotPassword(c echo.Context) error {
+//	var req domain.ForgotPasswordRequest
+//	if err := c.Bind(&req); err != nil || c.Validate(&req) != nil {
+//		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid email"})
+//	}
+//
+//	if err := h.uc.ForgotPassword(c.Request().Context(), req.Email); err != nil {
+//		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+//	}
+//
+//	return c.JSON(http.StatusOK, echo.Map{"message": "If your email is registered, a reset link was sent"})
+//}
+//
+//func (h *AuthHandler) ResetPassword(c echo.Context) error {
+//	var req domain.ResetPasswordRequest
+//	if err := c.Bind(&req); err != nil || c.Validate(&req) != nil {
+//		return c.JSON(http.StatusBadRequest, echo.Map{"error": "Invalid input"})
+//	}
+//
+//	if err := h.uc.ResetPassword(c.Request().Context(), req.Token, req.NewPassword); err != nil {
+//		return c.JSON(http.StatusBadRequest, echo.Map{"error": err.Error()})
+//	}
+//
+//	return c.JSON(http.StatusOK, echo.Map{"message": "Password updated successfully"})
+//}
