@@ -2,10 +2,8 @@ package postgres
 
 import (
 	"context"
-	"os/user"
 
-	"github.com/cavidyrm/instawall/internal/domain"
-
+	"github.com/cavidyrm/instawall/internal/user/domain"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,19 +17,30 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create creates a new user in the database.
+// Create remains the same.
 func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
 	query := `INSERT INTO users (mobile_number, password_hash, name, email)
 			  VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
 	return r.db.QueryRowxContext(ctx, query, u.MobileNumber, u.PasswordHash, u.Name, u.Email).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 }
 
-// GetByMobileNumber retrieves a user by their mobile number.
-func (r *UserRepository) GetByMobileNumber(ctx context.Context, mobileNumber string) (*user.User, error) {
-	var u user.User
+// GetByMobileNumber remains the same.
+func (r *UserRepository) GetByMobileNumber(ctx context.Context, mobileNumber string) (*domain.User, error) {
+	var u domain.User
 	query := `SELECT id, mobile_number, password_hash, name, email, created_at, updated_at
 			  FROM users WHERE mobile_number = $1`
 	err := r.db.GetContext(ctx, &u, query, mobileNumber)
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// GetByID retrieves a user by their ID.
+func (r *UserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
+	var u domain.User
+	query := `SELECT id, name, email, created_at, updated_at FROM users WHERE id = $1`
+	err := r.db.GetContext(ctx, &u, query, id)
 	if err != nil {
 		return nil, err
 	}
