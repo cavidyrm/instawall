@@ -1,62 +1,62 @@
 package config
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"sync"
-
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
+// Config holds all configuration for the application.
 type Config struct {
-	AppPort    string
-	DBHost     string
-	DBPort     string
-	DBUser     string
-	DBPassword string
-	DBName     string
-	JWTSecret  string
-	SMTPHost   string
-	SMTPPort   int
-	SMTPUser   string
-	SMTPPass   string
-	SMTPFrom   string
+	Server   ServerConfig   `mapstructure:"server"`
+	Postgres PostgresConfig `mapstructure:"postgres"`
+	Redis    RedisConfig    `mapstructure:"redis"`
+	MinIO    MinIOConfig    `mapstructure:"minio"` // <-- This is now correctly included.
 }
 
-var (
-	cfg  *Config
-	once sync.Once
-)
-
-func LoadConfig() *Config {
-	once.Do(func() {
-		if err := godotenv.Load(); err != nil {
-			log.Println("No .env file found, using environment variables")
-		}
-
-		cfg = &Config{
-			AppPort:    getEnv("APP_PORT", "8080"),
-			DBHost:     getEnv("DB_HOST", "localhost"),
-			DBPort:     getEnv("DB_PORT", "5432"),
-			DBUser:     getEnv("DB_USER", "postgres"),
-			DBPassword: getEnv("DB_PASSWORD", ""),
-			DBName:     getEnv("DB_NAME", ""),
-			JWTSecret:  getEnv("JWT_SECRET", "defaultsecret"),
-		}
-	})
-
-	return cfg
+// ServerConfig holds server-specific settings.
+type ServerConfig struct {
+	Port string `mapstructure:"port"`
 }
 
-func getEnv(key, defaultVal string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+// PostgresConfig holds PostgreSQL connection details.
+type PostgresConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
+}
+
+// RedisConfig holds Redis connection details.
+type RedisConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+	DB       int    `mapstructure:"db"`
+}
+
+// MinIOConfig holds MinIO connection details.
+type MinIOConfig struct {
+	Endpoint   string `mapstructure:"endpoint"`
+	AccessKey  string `mapstructure:"access_key"`
+	SecretKey  string `mapstructure:"secret_key"`
+	UseSSL     bool   `mapstructure:"use_ssl"`
+	BucketName string `mapstructure:"bucket_name"`
+}
+
+// LoadConfig reads configuration from file or environment variables.
+func LoadConfig(path string) (config Config, err error) {
+	viper.AddConfigPath(path)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+
+	viper.AutomaticEnv()
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
 	}
-	return defaultVal
-}
 
-func (c *Config) GetDBConnStr() string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName)
+	err = viper.Unmarshal(&config)
+	return
 }

@@ -1,0 +1,23 @@
+server:
+  port: ":8080"
+
+postgres:
+  host: "localhost"
+  port: "5432"
+  user: "user"
+  password: "password"
+  dbname: "test"
+  sslmode: "disable"
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+
+minio:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  use_ssl: false
+  bucket_name: "my-app-bucket"
