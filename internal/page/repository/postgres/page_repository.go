@@ -47,3 +47,34 @@ func (r *PageRepository) LinkPageToCategories(ctx context.Context, pageID uuid.U
 
 	return tx.Commit()
 }
+
+// GetPageByID retrieves a single page by its ID.
+func (r *PageRepository) GetPageByID(ctx context.Context, pageID uuid.UUID) (*domain.Page, error) {
+	var p domain.Page
+	query := `SELECT * FROM pages WHERE id = $1`
+	err := r.db.GetContext(ctx, &p, query, pageID)
+	return &p, err
+}
+
+// GetAllPages retrieves a paginated list of all pages.
+func (r *PageRepository) GetAllPages(ctx context.Context, limit, offset int) ([]domain.Page, error) {
+	var pages []domain.Page
+	query := `SELECT * FROM pages ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	err := r.db.SelectContext(ctx, &pages, query, limit, offset)
+	return pages, err
+}
+
+// UpdatePage updates an existing page's details in the database.
+func (r *PageRepository) UpdatePage(ctx context.Context, p *domain.Page) error {
+	query := `UPDATE pages SET title = $1, description = $2, image_url = $3, link = $4, has_issue = $5, updated_at = NOW()
+			  WHERE id = $6 AND user_id = $7`
+	_, err := r.db.ExecContext(ctx, query, p.Title, p.Description, p.ImageURL, p.Link, p.HasIssue, p.ID, p.UserID)
+	return err
+}
+
+// DeletePage removes a page from the database.
+func (r *PageRepository) DeletePage(ctx context.Context, pageID, userID uuid.UUID) error {
+	query := `DELETE FROM pages WHERE id = $1 AND user_id = $2`
+	_, err := r.db.ExecContext(ctx, query, pageID, userID)
+	return err
+}
